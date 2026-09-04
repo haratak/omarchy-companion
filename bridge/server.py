@@ -29,6 +29,16 @@ DEFAULT_PORT = 17832
 PLUGIN_ROOT = Path(__file__).resolve().parent.parent
 PHONE_DIR = PLUGIN_ROOT / "phone"
 STATUS_PATH = Path(os.environ.get("OMARCHY_COMPANION_STATUS", "/tmp/omarchy-companion-bridge.json"))
+PLUGIN_ROOT = Path(__file__).resolve().parent.parent
+
+def read_plugin_version() -> str:
+    try:
+        data = json.loads((PLUGIN_ROOT / "manifest.json").read_text(encoding="utf-8"))
+        return str(data.get("version") or "0.0.0")
+    except Exception:  # noqa: BLE001
+        return "0.0.0"
+
+PLUGIN_VERSION = read_plugin_version()
 
 # ---------------------------------------------------------------------------
 # Tool detection
@@ -600,15 +610,58 @@ def hypr_dispatch(request: str) -> Dict[str, Any]:
     return {"ok": code == 0, "via": "hyprctl-legacy", "out": (out or "").strip(), "error": (err or out) if code else None}
 
 
+def _workspace_ids(st: Dict[str, Any]) -> List[int]:
+    ids: List[int] = []
+    for w in st.get("workspaces") or []:
+        try:
+            i = int(w.get("id"))
+        except Exception:  # noqa: BLE001
+            continue
+        if i > 0:
+            ids.append(i)
+    return sorted(set(ids))
+
+
+def cycle_workspace(delta: int) -> Dict[str, Any]:
+    """Switch workspace. Prefer Omarchy e±1; fall back to absolute id cycle."""
+    ensure_hyprland_env()
+    rel = "e+1" if delta > 0 else "e-1"
+    r = hypr_dispatch_lua(f'hl.dsp.focus({{ workspace = "{rel}" }})')
+    print(f"[bridge] workspace delta={delta} via=e rel={rel} ok={r.get('ok')} err={r.get('error')!r}", file=sys.stderr)
+    if not r.get("ok"):
+        st = fetch_hypr_state()
+        ids = _workspace_ids(st) or [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        try:
+            cur = int(st.get("activeWorkspace") or ids[0])
+        except Exception:  # noqa: BLE001
+            cur = ids[0]
+        if cur in ids:
+            nxt = ids[(ids.index(cur) + (1 if delta > 0 else -1)) % len(ids)]
+        else:
+            nxt = ids[0]
+        r = hypr_dispatch_lua(f'hl.dsp.focus({{ workspace = "{nxt}" }})')
+        print(f"[bridge] workspace fallback abs={nxt} ok={r.get('ok')}", file=sys.stderr)
+        r["fallback"] = f"abs:{nxt}"
+    st2 = fetch_hypr_state()
+    r["activeWorkspace"] = st2.get("activeWorkspace")
+    r["state"] = st2
+    return r
+
+
 def handle_shortcut(sid: str) -> Dict[str, Any]:
     sid = str(sid or "").strip()
     if sid.startswith("workspace:") and sid.split(":", 1)[1].isdigit():
         n = sid.split(":", 1)[1]
-        return hypr_dispatch_lua(f'hl.dsp.focus({{ workspace = "{n}" }})')
+        ensure_hyprland_env()
+        r = hypr_dispatch_lua(f'hl.dsp.focus({{ workspace = "{n}" }})')
+        st = fetch_hypr_state()
+        r["activeWorkspace"] = st.get("activeWorkspace")
+        r["state"] = st
+        return r
     if sid == "workspace:next":
-        return hypr_dispatch_lua('hl.dsp.focus({ workspace = "e+1" })')
+        return cycle_workspace(1)
     if sid == "workspace:prev":
-        return hypr_dispatch_lua('hl.dsp.focus({ workspace = "e-1" })')
+        return cycle_workspace(-1)
     if sid == "window:next":
         return hypr_dispatch_lua('hl.dsp.focus({ direction = "r" })')
     if sid == "window:prev":
@@ -769,6 +822,7 @@ class BridgeState:
             "dryRun": self.dry_run,
             "phoneDir": str(PHONE_DIR),
             "uptimeSec": int(time.time() - self.started_at),
+            "version": PLUGIN_VERSION,
         }
 
     def write_status(self) -> None:
@@ -828,11 +882,14 @@ def handle_message(msg: Dict[str, Any]) -> Dict[str, Any]:
             r["ok"] = True
         return {"type": "ack" if r.get("ok") else "error", "op": "text", **r}
     if mtype == "shortcut":
-        r = handle_shortcut(str(msg.get("id") or ""))
+        sid = str(msg.get("id") or "")
+        print(f"[bridge] shortcut id={sid!r}", file=sys.stderr)
+        r = handle_shortcut(sid)
         if STATE.dry_run:
             r["dry_run"] = True
             r["ok"] = True
-        return {"type": "ack" if r.get("ok") else "error", "op": "shortcut", **r}
+        # Avoid duplicating huge nested state twice in logs; still return it for phone UI
+        return {"type": "ack" if r.get("ok") else "error", "op": "shortcut", "id": sid, **r}
     if mtype == "state":
         st = fetch_hypr_state()
         return {"type": "state", **st}
@@ -851,7 +908,8 @@ def ws_session(conn: socket.socket, token_ok: bool) -> None:
     try:
         hello = {
             "type": "hello",
-            "version": "0.2.0",
+            "version": PLUGIN_VERSION,
+            "protocol": 1,
             "features": ["pointer", "click", "scroll", "keycombo", "text", "shortcut", "state"],
             "tools": {k: bool(v) for k, v in TOOLS.items()},
             "dryRun": STATE.dry_run,

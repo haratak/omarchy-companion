@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "harataku.companion",
   "name": "Omarchy Companion",
-  "version": "0.4.8",
+  "version": "0.4.9",
   "author": "harataku",
   "license": "MIT",
   "description": "Phone-paired Omarchy companion: HTTPS PWA bridge + Pad/Switch/Keys/Type.",

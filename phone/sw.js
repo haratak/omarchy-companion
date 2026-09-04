@@ -1,5 +1,5 @@
 /* Omarchy Companion service worker */
-const CACHE = "companion-shell-v47";
+const CACHE = "companion-shell-v49";
 const SHELL = [
   "./",
   "./index.html",

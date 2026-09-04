@@ -63,6 +63,11 @@ button.danger { color: var(--danger); border-color: #5a2a2a; }
 .topbar.compact { padding-bottom: 4px; }
 .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.95rem; }
 .logo { color: var(--accent); }
+.ver-pill {
+  font-size: 0.6rem; font-weight: 600; padding: 2px 7px; border-radius: 999px;
+  background: transparent; color: var(--muted); border: 1px solid var(--border);
+  letter-spacing: 0.02em;
+}
 .ws-pill {
   font-size: 0.65rem; font-weight: 700; padding: 3px 8px; border-radius: 999px;
   background: var(--panel2); color: var(--muted); border: 1px solid var(--border);
@@ -139,6 +144,7 @@ button.danger { color: var(--danger); border-color: #5a2a2a; }
 
 .dock {
   display: flex; gap: 6px; margin-top: 8px; flex-shrink: 0; align-items: stretch;
+  position: relative; z-index: 5;
 }
 .dock-btn {
   flex: 0 0 auto; min-width: 44px; padding: 12px 10px;

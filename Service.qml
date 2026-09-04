@@ -33,6 +33,7 @@ Item {
     property string bridgeToken: ""
     property string bridgeUrl: ""
     property int bridgeClients: 0
+    property string pluginVersion: "0.4.9"
     property bool bridgeRunning: false
     property string advertiseIp: ""
     property bool pendingBridgeStart: false
@@ -136,7 +137,8 @@ Item {
             clients: root.bridgeClients,
             statusFile: root.statusFile,
             pluginDir: root.pluginDir,
-            error: root.lastBridgeError
+            error: root.lastBridgeError,
+            version: root.pluginVersion
         }
     }
 
@@ -240,6 +242,7 @@ Item {
             if (info.host) root.advertiseIp = String(info.host)
             if (info.url) root.bridgeUrl = String(info.url)
             if (info.clients != null) root.bridgeClients = Number(info.clients)
+            if (info.version) root.pluginVersion = String(info.version)
             if (info.url || info.port || root.bridgeRunning) root.bridgeRunning = true
             root.lastBridgeError = ""
         } catch (e) {}

@@ -309,6 +309,16 @@ Panel {
               font.pixelSize: 16
               font.bold: true
             }
+            Text {
+              id: versionLabel
+              anchors.verticalCenter: parent.verticalCenter
+              text: {
+                var v = root.pairInfo && root.pairInfo.version ? String(root.pairInfo.version) : "0.4.9"
+                return "v" + v.replace(/^v/, "")
+              }
+              color: Theme.muted
+              font.pixelSize: 10
+            }
             Rectangle {
               width: mockLabel.implicitWidth + 12
               height: 20

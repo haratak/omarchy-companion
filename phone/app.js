@@ -5,6 +5,8 @@
 (function () {
   "use strict";
 
+  var APP_VERSION = "0.4.9";
+
   var STORAGE_KEY = "omarchy.companion.pair.v1";
   var COMBOS_KEY = "omarchy.companion.combos.v1";
   var DEFAULT_COMBOS = [
@@ -127,6 +129,12 @@
     pairScreen.classList.add("hidden");
     mainScreen.classList.remove("hidden");
   }
+  function setAppVersion(v) {
+    var el = document.getElementById("app-version");
+    if (el) el.textContent = "v" + String(v || APP_VERSION).replace(/^v/, "");
+  }
+  setAppVersion(APP_VERSION);
+
   function setConn(status, detail) {
     connPill.className = "pill " + status;
     connPill.textContent =
@@ -348,7 +356,17 @@
     if (msg.type === "hello") {
       state.authFail = 0;
       state.lastPongAt = Date.now();
+      if (msg.version) setAppVersion(msg.version);
       setConn("online");
+    }
+    if (msg.type === "ack" && msg.op === "shortcut" && msg.state) {
+      state.lastPongAt = Date.now();
+      state.workspaces = msg.state.workspaces || state.workspaces;
+      state.windows = msg.state.windows || state.windows;
+      state.focused = msg.state.focused != null ? msg.state.focused : state.focused;
+      if (msg.activeWorkspace != null) state.activeWorkspace = msg.activeWorkspace;
+      else if (msg.state.activeWorkspace != null) state.activeWorkspace = msg.state.activeWorkspace;
+      renderSwitch();
     }
     if (msg.type === "state") {
       state.lastPongAt = Date.now();
@@ -550,12 +568,12 @@
         state.suppressPadAction = true;
         flash("left");
         showToast("Workspace ◀");
-        send({ type: "shortcut", id: "workspace:prev" });
+        onceWs(-1);
       } else if (edge === "right" && dx <= -SWIPE) {
         state.suppressPadAction = true;
         flash("right");
         showToast("Workspace ▶");
-        send({ type: "shortcut", id: "workspace:next" });
+        onceWs(1);
       }
       edge = null;
     }, true);
@@ -675,11 +693,48 @@
     }
   }
 
-  $("ws-prev").addEventListener("click", function () { send({ type: "shortcut", id: "workspace:prev" }); });
-  $("ws-next").addEventListener("click", function () { send({ type: "shortcut", id: "workspace:next" }); });
-  $("win-prev").addEventListener("click", function () { send({ type: "shortcut", id: "window:prev" }); });
-  $("win-next").addEventListener("click", function () { send({ type: "shortcut", id: "window:next" }); });
-  $("menu-btn").addEventListener("click", function () { send({ type: "shortcut", id: "menu" }); });
+  function switchWorkspace(dir) {
+    var id = dir < 0 ? "workspace:prev" : "workspace:next";
+    var toast = document.getElementById("gesture-toast");
+    if (toast) {
+      toast.textContent = dir < 0 ? "Workspace ◀" : "Workspace ▶";
+      toast.classList.remove("hidden");
+      setTimeout(function () { toast.classList.add("hidden"); }, 700);
+    }
+    if (!send({ type: "shortcut", id: id })) return;
+    setTimeout(function () { send({ type: "state" }); }, 120);
+  }
+  function bindTap(el, fn) {
+    if (!el) return;
+    var armed = false;
+    el.addEventListener("pointerdown", function (e) {
+      armed = true;
+      try { el.setPointerCapture(e.pointerId); } catch (err) {}
+    });
+    el.addEventListener("pointerup", function (e) {
+      if (!armed) return;
+      armed = false;
+      e.preventDefault();
+      fn(e);
+    });
+    el.addEventListener("click", function (e) {
+      // fallback for browsers that skip pointerup→click inconsistently
+      e.preventDefault();
+      fn(e);
+    });
+  }
+  var _wsGuard = 0;
+  function onceWs(dir) {
+    var now = Date.now();
+    if (now - _wsGuard < 280) return;
+    _wsGuard = now;
+    switchWorkspace(dir);
+  }
+  bindTap($("ws-prev"), function () { onceWs(-1); });
+  bindTap($("ws-next"), function () { onceWs(1); });
+  bindTap($("win-prev"), function () { send({ type: "shortcut", id: "window:prev" }); });
+  bindTap($("win-next"), function () { send({ type: "shortcut", id: "window:next" }); });
+  bindTap($("menu-btn"), function () { send({ type: "shortcut", id: "menu" }); });
 
   // --- Keys ---
   function renderCombos() {
