@@ -47,7 +47,32 @@ TOOLS = {
 }
 
 
+def ensure_hyprland_env() -> None:
+    """Quickshell/UWSM may start us with HYPRLAND_INSTANCE_SIGNATURE="" — hyprctl then fails.
+    Fill from the newest instance under $XDG_RUNTIME_DIR/hypr when missing/empty."""
+    sig = (os.environ.get("HYPRLAND_INSTANCE_SIGNATURE") or "").strip()
+    if sig:
+        return
+    runtime = os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}"
+    hypr = Path(runtime) / "hypr"
+    if not hypr.is_dir():
+        return
+    dirs = [p for p in hypr.iterdir() if p.is_dir()]
+    if not dirs:
+        return
+    newest = max(dirs, key=lambda p: p.stat().st_mtime)
+    os.environ["HYPRLAND_INSTANCE_SIGNATURE"] = newest.name
+    if not os.environ.get("WAYLAND_DISPLAY"):
+        os.environ["WAYLAND_DISPLAY"] = "wayland-1"
+    print(
+        f"[bridge] restored HYPRLAND_INSTANCE_SIGNATURE={newest.name}",
+        file=sys.stderr,
+    )
+
+
 def run_cmd(argv: List[str], timeout: float = 3.0) -> Tuple[int, str, str]:
+    if argv and Path(argv[0]).name == "hyprctl":
+        ensure_hyprland_env()
     try:
         p = subprocess.run(
             argv,
@@ -1230,6 +1255,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     _ = STATE.pair_url()
     save_persisted_token(token, public_base=getattr(STATE, "_public_base", None), port=port, path=pair_state)
     print(f"[bridge] pair-state {pair_state} token=…{token[-4:]}", file=sys.stderr)
+    ensure_hyprland_env()
 
     server = ThreadingHTTPServer((args.host, port), Handler)
     use_tls = bool(args.https) and not bool(args.http)
