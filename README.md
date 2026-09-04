@@ -117,3 +117,15 @@ The bridge binds `0.0.0.0` and requires the pair token on HTTP/WS. Anyone on you
 ## License
 
 MIT — see `LICENSE`.
+
+## GitHub / Cursor
+
+- Repo: https://github.com/haratak/omarchy-companion
+- This plugin directory **is** the git working tree (`~/.config/omarchy/plugins/harataku.companion`).
+- Develop via Cursor cloud agents on that repo; after merge:
+
+```bash
+cd ~/.config/omarchy/plugins/harataku.companion && git pull --ff-only
+```
+
+- `state/` (pairing token) is gitignored and stays local only.
