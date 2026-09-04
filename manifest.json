@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "harataku.companion",
+  "name": "Omarchy Companion",
+  "version": "0.4.7",
+  "author": "harataku",
+  "license": "MIT",
+  "description": "Phone-paired Omarchy companion: HTTPS PWA bridge + Pad/Switch/Keys/Type.",
+  "kinds": [
+    "service",
+    "bar-widget"
+  ],
+  "keepLoaded": true,
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Companion",
+    "description": "Pair a phone or open the touch companion remote",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

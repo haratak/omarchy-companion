@@ -1,0 +1,5 @@
+module ui
+StageView 1.0 StageView.qml
+InputDeckView 1.0 InputDeckView.qml
+MenuView 1.0 MenuView.qml
+ControlCentreView 1.0 ControlCentreView.qml

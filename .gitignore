@@ -1,0 +1,9 @@
+*.qmlc
+*.jsc
+.DS_Store
+node_modules/
+state/
+*.log
+/tmp/
+__pycache__/
+*.pyc

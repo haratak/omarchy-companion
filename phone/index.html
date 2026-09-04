@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0a0f" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Companion" />
+  <meta name="application-name" content="Companion" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <title>Omarchy Companion</title>
+  <link rel="stylesheet" href="app.css" />
+</head>
+<body>
+
+  <div id="pwaInstall" class="pwa-install" hidden>
+    <span>ホーム画面に追加できます</span>
+    <button type="button" id="pwaInstallBtn" class="pwa-install-btn">追加</button>
+    <button type="button" id="pwaDismiss" class="pwa-dismiss" aria-label="閉じる">×</button>
+  </div>
+
+  <div id="boot-fallback" style="padding:24px;font:16px/1.4 -apple-system,sans-serif;color:#e8e8f0;background:#0a0a0f;min-height:100vh">Connecting to Omarchy Companion…<noscript><p>JavaScript required.</p></noscript></div>
+  <div id="app">
+    <!-- Pairing gate -->
+    <section id="pair-screen" class="screen hidden">
+      <h1>Pair with Omarchy</h1>
+      <p class="muted">Open the Companion panel on your host, tap <strong>Start bridge</strong>, then scan the QR or paste the URL/token here.</p>
+      <label>Host URL
+        <input id="pair-url" type="url" inputmode="url" autocomplete="off" placeholder="https://haratarch.tail46c55.ts.net/companion" />
+      </label>
+      <label>Token
+        <input id="pair-token" type="text" autocomplete="off" placeholder="token from panel" />
+      </label>
+      <button id="pair-connect" class="primary">Connect</button>
+      <button id="pair-reconnect" type="button" class="chip wide" style="margin-top:8px">保存したペアリングで再接続</button>
+      <button id="pair-forget" type="button" class="chip ghost wide" style="margin-top:8px">ペアリングを忘却</button>
+      <p id="pair-error" class="error"></p>
+    </section>
+
+    <!-- Main: single-screen control surface -->
+    <section id="main-screen" class="screen surface hidden">
+      <header class="topbar compact">
+        <div class="brand">
+          <span class="logo">▣</span>
+          <span>Companion</span>
+          <span id="ws-indicator" class="ws-pill">WS —</span>
+        </div>
+        <div class="conn-wrap">
+          <div id="conn-pill" class="pill offline">Offline</div>
+        </div>
+      </header>
+      <div id="conn-banner" class="conn-banner hidden" role="status"></div>
+
+      <div id="pad-stage" class="pad-stage">
+        <div class="edge-hint edge-left" aria-hidden="true">WS◀</div>
+        <div class="edge-hint edge-right" aria-hidden="true">WS▶</div>
+        <div id="trackpad" class="trackpad" role="application" aria-label="Trackpad">
+          <div class="pad-crosshair"></div>
+          <div id="scroll-badge" class="scroll-badge hidden">SCROLL</div>
+          <div id="gesture-toast" class="gesture-toast hidden"></div>
+        </div>
+      </div>
+
+      <div class="dock">
+        <button id="nav-back" type="button" class="dock-btn" title="Back">◀</button>
+        <button id="ws-prev" type="button" class="dock-btn" title="Workspace prev">WS◀</button>
+        <button id="menu-btn" type="button" class="dock-btn accent" title="Omarchy Menu">☰</button>
+        <button id="kb-toggle" type="button" class="dock-btn grow" title="Keyboard">⌨ キーボード</button>
+        <button id="ws-next" type="button" class="dock-btn" title="Workspace next">WS▶</button>
+        <button id="nav-forward" type="button" class="dock-btn" title="Forward">▶</button>
+      </div>
+
+      <!-- Keyboard + combos drawer -->
+      <div id="kb-drawer" class="kb-drawer hidden" aria-hidden="true">
+        <div class="kb-handle" id="kb-handle"></div>
+        <div class="kb-quick">
+          <div id="combo-grid" class="combo-row"></div>
+          <button id="add-combo" type="button" class="chip ghost tiny">+</button>
+          <button id="edit-combos" type="button" class="chip ghost tiny">⚙</button>
+        </div>
+        <textarea id="type-input" rows="2" placeholder="PCに入力…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+        <div class="kb-actions">
+          <label class="check"><input type="checkbox" id="live-mode" /> Live</label>
+          <button id="win-prev" type="button" class="chip">Win◀</button>
+          <button id="win-next" type="button" class="chip">Win▶</button>
+          <button id="type-enter" type="button" class="chip">Enter</button>
+          <button id="type-send" type="button" class="primary chip">Send</button>
+          <button id="kb-close" type="button" class="chip ghost">閉じる</button>
+        </div>
+        <!-- kept for JS renderSwitch compatibility (hidden) -->
+        <div id="ws-grid" class="hidden"></div>
+        <ul id="win-list" class="hidden"></ul>
+        <p id="conn-detail" class="hidden"></p>
+        <p id="pad-hint" class="hidden"></p>
+      </div>
+    </section>
+
+    <!-- Combo editor sheet -->
+    <div id="sheet" class="sheet hidden">
+      <div class="sheet-card">
+        <h2 id="sheet-title">Add combo</h2>
+        <label>Label <input id="sheet-label" type="text" placeholder="VoiceBox" /></label>
+        <div class="mods">
+          <label class="check"><input type="checkbox" data-mod="SUPER" /> Super</label>
+          <label class="check"><input type="checkbox" data-mod="SHIFT" /> Shift</label>
+          <label class="check"><input type="checkbox" data-mod="CTRL" /> Ctrl</label>
+          <label class="check"><input type="checkbox" data-mod="ALT" /> Alt</label>
+        </div>
+        <label>Key <input id="sheet-key" type="text" maxlength="16" placeholder="v" /></label>
+        <div class="row">
+          <button id="sheet-cancel" class="chip ghost">Cancel</button>
+          <button id="sheet-save" class="primary">Save</button>
+        </div>
+        <button id="sheet-forget" class="chip danger hidden">Forget pairing</button>
+      </div>
+    </div>
+  </div>
+  <script src="vendor/qrcode.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
