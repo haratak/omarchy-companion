@@ -448,7 +448,7 @@ def inject_keycombo(keys: List[str]) -> Dict[str, Any]:
 
 
 def inject_text(text: str) -> Dict[str, Any]:
-    """Prefer clipboard paste (Ctrl+V). wtype drops leading glyphs for JP / VoiceBox-like flows."""
+    """Prefer clipboard paste (Super+V). wtype drops leading glyphs for JP / VoiceBox-like flows."""
     if text is None:
         return {"ok": False, "error": "no text"}
     text = str(text).replace("\r\n", "\n").strip("\n")
@@ -472,13 +472,14 @@ def inject_text(text: str) -> Dict[str, Any]:
             )
             if proc.returncode == 0:
                 time.sleep(0.08)
-                r = inject_keycombo(["CTRL", "v"])
+                # Super+V (not Ctrl+V): avoids agent-terminal paste-image binds.
+                r = inject_keycombo(["SUPER", "v"])
                 print(
-                    f"[bridge] paste via=wl-copy+ctrl-v ok={r.get('ok')} err={r.get('error')!r}",
+                    f"[bridge] paste via=wl-copy+super-v ok={r.get('ok')} err={r.get('error')!r}",
                     file=sys.stderr,
                 )
                 if r.get("ok"):
-                    r["via"] = "wl-copy+ctrl-v"
+                    r["via"] = "wl-copy+super-v"
                     r["chars"] = len(text)
                     return r
             else:

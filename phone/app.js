@@ -5,7 +5,7 @@
 (function () {
   "use strict";
 
-  var APP_VERSION = "0.4.9";
+  var APP_VERSION = "0.4.10";
 
   var STORAGE_KEY = "omarchy.companion.pair.v1";
   var COMBOS_KEY = "omarchy.companion.combos.v1";

@@ -313,7 +313,7 @@ Panel {
               id: versionLabel
               anchors.verticalCenter: parent.verticalCenter
               text: {
-                var v = root.pairInfo && root.pairInfo.version ? String(root.pairInfo.version) : "0.4.9"
+                var v = root.pairInfo && root.pairInfo.version ? String(root.pairInfo.version) : "0.4.10"
                 return "v" + v.replace(/^v/, "")
               }
               color: Theme.muted
