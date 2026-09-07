@@ -33,7 +33,7 @@ Item {
     property string bridgeToken: ""
     property string bridgeUrl: ""
     property int bridgeClients: 0
-    property string pluginVersion: "0.4.9"
+    property string pluginVersion: "0.4.10"
     property bool bridgeRunning: false
     property string advertiseIp: ""
     property bool pendingBridgeStart: false
