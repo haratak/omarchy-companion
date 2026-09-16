@@ -62,7 +62,7 @@
         <div class="edge-hint edge-right" aria-hidden="true">WS▶</div>
         <div id="trackpad" class="trackpad" role="application" aria-label="Trackpad">
           <div class="pad-crosshair"></div>
-          <div id="scroll-badge" class="scroll-badge hidden">SCROLL</div>
+          <div id="mode-badge" class="mode-badge cursor" aria-live="polite">CURSOR</div>
           <div id="gesture-toast" class="gesture-toast hidden"></div>
         </div>
       </div>
@@ -86,11 +86,11 @@
         </div>
         <textarea id="type-input" rows="2" placeholder="PCに入力…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
         <div class="kb-actions">
-          <label class="check"><input type="checkbox" id="live-mode" /> Live</label>
           <button id="win-prev" type="button" class="chip">Win◀</button>
           <button id="win-next" type="button" class="chip">Win▶</button>
           <button id="type-enter" type="button" class="chip">Enter</button>
           <button id="type-send" type="button" class="primary chip">Send</button>
+          <button id="type-send-enter" type="button" class="chip send-enter" title="Send + Enter">Send+Enter</button>
           <button id="kb-close" type="button" class="chip ghost">閉じる</button>
         </div>
         <!-- kept for JS renderSwitch compatibility (hidden) -->
