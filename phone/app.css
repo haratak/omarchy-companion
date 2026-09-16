@@ -127,14 +127,24 @@ button.danger { color: var(--danger); border-color: #5a2a2a; }
   position: absolute; inset: 0; margin: auto; width: 48px; height: 48px;
   border: 1px dashed #2a2a3a; border-radius: 50%; pointer-events: none; opacity: 0.45;
 }
-.scroll-badge {
-  position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
-  background: rgba(124, 92, 255, 0.92); color: #fff;
-  font-size: 0.75rem; font-weight: 700; letter-spacing: 0.06em;
-  padding: 4px 10px; border-radius: 999px; pointer-events: none; z-index: 2;
+.mode-badge {
+  position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+  font-size: 0.62rem; font-weight: 700; letter-spacing: 0.08em;
+  padding: 3px 8px; border-radius: 999px; pointer-events: none; z-index: 2;
 }
-.scroll-badge.hidden, .gesture-toast.hidden { display: none !important; }
+.mode-badge.cursor {
+  background: rgba(20, 20, 30, 0.5); color: var(--muted);
+  border: 1px solid var(--border);
+}
+.mode-badge.scroll {
+  background: rgba(124, 92, 255, 0.88); color: #fff;
+  border: 1px solid transparent;
+}
+.mode-badge.hidden, .gesture-toast.hidden { display: none !important; }
 .trackpad.scroll-mode { outline: 2px solid #7c5cff; outline-offset: -2px; }
+button.chip.send-enter {
+  background: #2a2450; border-color: var(--accent); color: #cfc8ff;
+}
 .gesture-toast {
   position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
   background: rgba(20,20,30,0.9); border: 1px solid var(--border);

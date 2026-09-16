@@ -5,7 +5,7 @@
 (function () {
   "use strict";
 
-  var APP_VERSION = "0.4.10";
+  var APP_VERSION = "0.4.11";
 
   var STORAGE_KEY = "omarchy.companion.pair.v1";
   var COMBOS_KEY = "omarchy.companion.combos.v1";
@@ -47,7 +47,6 @@
     focused: null,
     activeWorkspace: null,
     combos: loadCombos(),
-    liveMode: false,
     sheetMode: "add" // add | settings
   };
 
@@ -382,6 +381,9 @@
         failLink("トークン不一致 — PCのQRを再スキャン");
       }
     }
+    if ((msg.type === "ack" || msg.type === "error") && msg.op === "text") {
+      flushPendingEnter();
+    }
   }
 
   // --- Tabs ---
@@ -393,12 +395,12 @@
 
 
   // --- Trackpad ---
-  // tap = left · double-tap = right · double-tap-hold = scroll while finger down
+  // tap = left · double-tap = right · double-tap-hold = toggle cursor / scroll mode
   (function setupPad() {
     var pointers = new Map();
     var moved = false;
     var SENS = 1.35;
-    var SCROLL_SENS = 0.55;
+    var SCROLL_SENS = 0.26; // was 0.55; ~half so scroll is usable, not twitchy
     var TAP_MS = 260;
     var DOUBLE_MS = 340;
     var HOLD_MS = 400;
@@ -406,8 +408,9 @@
     var lastTapUp = 0;
     var leftTimer = null;
     var holdTimer = null;
-    var scrollMode = false;
-    var badge = document.getElementById("scroll-badge");
+    var padMode = "cursor"; // cursor | scroll (sticky until next toggle)
+    var modeToggled = false;
+    var badge = document.getElementById("mode-badge");
 
     function clearLeft() {
       if (leftTimer) { clearTimeout(leftTimer); leftTimer = null; }
@@ -415,25 +418,37 @@
     function clearHold() {
       if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
     }
-    function setScrollMode(on) {
-      scrollMode = !!on;
-      if (badge) badge.classList.toggle("hidden", !scrollMode);
-      trackpad.classList.toggle("scroll-mode", scrollMode);
+    function applyPadMode() {
+      var isScroll = padMode === "scroll";
+      if (badge) {
+        badge.textContent = isScroll ? "SCROLL" : "CURSOR";
+        badge.classList.toggle("scroll", isScroll);
+        badge.classList.toggle("cursor", !isScroll);
+        badge.classList.remove("hidden");
+      }
+      trackpad.classList.toggle("scroll-mode", isScroll);
     }
+    function togglePadMode() {
+      padMode = padMode === "scroll" ? "cursor" : "scroll";
+      modeToggled = true;
+      applyPadMode();
+    }
+    applyPadMode();
 
     trackpad.addEventListener("pointerdown", function (e) {
       trackpad.setPointerCapture(e.pointerId);
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       moved = false;
+      modeToggled = false;
       clearHold();
       var now = Date.now();
       if (phase === "wait2" && (now - lastTapUp) <= DOUBLE_MS) {
-        // second tap of a double-tap
+        // second tap of a double-tap — hold to toggle mode
         clearLeft();
         phase = "second";
         holdTimer = setTimeout(function () {
           if (pointers.has(e.pointerId) && !moved) {
-            setScrollMode(true);
+            togglePadMode();
           }
         }, HOLD_MS);
       }
@@ -450,14 +465,14 @@
         moved = true;
         clearHold();
       }
-      if (scrollMode) {
+      if (padMode === "scroll") {
         var sdx = Math.round(dx * SCROLL_SENS);
         var sdy = Math.round(dy * SCROLL_SENS);
         if (sdx || sdy) send({ type: "scroll", dx: sdx, dy: sdy });
         e.preventDefault();
         return;
       }
-      // dragging during second-tap cancels right-click / scroll-hold → just move cursor
+      // dragging during second-tap cancels right-click / mode-hold → cursor move
       if (phase === "second" && moved) {
         phase = "idle";
       }
@@ -472,8 +487,8 @@
       pointers.delete(e.pointerId);
       clearHold();
       var now = Date.now();
-      if (scrollMode) {
-        setScrollMode(false);
+      if (modeToggled) {
+        modeToggled = false;
         phase = "idle";
         return;
       }
@@ -830,53 +845,78 @@
 
   // --- Type ---
   var typeInput = $("type-input");
-  var liveMode = $("live-mode");
-  var lastLive = "";
-  var composing = false;
   var capturedSend = null; // text snapped before IME blur steals the first char
-  liveMode.addEventListener("change", function () {
-    state.liveMode = !!liveMode.checked;
-    lastLive = typeInput.value;
-  });
-  typeInput.addEventListener("compositionstart", function () { composing = true; });
-  typeInput.addEventListener("compositionend", function () {
-    composing = false;
-    lastLive = typeInput.value;
-  });
-  typeInput.addEventListener("input", function (e) {
-    if (!state.liveMode) return;
-    // Never stream partial IME composition (Japanese etc.) — drops/garbles glyphs
-    if (composing || (e && e.isComposing)) return;
-    var v = typeInput.value;
-    if (v.length > lastLive.length && v.slice(0, lastLive.length) === lastLive) {
-      send({ type: "text", text: v.slice(lastLive.length) });
-    } else if (v !== lastLive) {
-      send({ type: "text", text: v.slice(-1) });
-    }
-    lastLive = v;
-  });
-  function sendTypeText(t) {
-    if (!t) return;
-    // Drop trailing blank lines from the textarea, keep real content
-    t = String(t).replace(/\s+$/g, "");
-    if (!t) return;
-    send({ type: "text", text: t });
-    typeInput.value = "";
-    lastLive = "";
-    capturedSend = null;
-  }
-  // Snapshot on press so IME blur cannot empty the field before click
-  $("type-send").addEventListener("pointerdown", function () {
+  var pendingEnter = false;
+  var pendingEnterTimer = null;
+  var SEND_THEN_ENTER_MS = 160;
+
+  function captureTypeInput() {
     capturedSend = typeInput.value;
-  });
-  $("type-send").addEventListener("click", function () {
+  }
+  function resolveTypeText() {
     var now = typeInput.value || "";
     var cap = capturedSend || "";
-    var t = cap.length >= now.length ? cap : now;
-    sendTypeText(t);
-  });
-  $("type-enter").addEventListener("click", function () {
+    return cap.length >= now.length ? cap : now;
+  }
+  function sendTypeText(t) {
+    if (!t) return false;
+    // Drop trailing blank lines from the textarea, keep real content
+    t = String(t).replace(/\s+$/g, "");
+    if (!t) return false;
+    var ok = send({ type: "text", text: t });
+    typeInput.value = "";
+    capturedSend = null;
+    return ok;
+  }
+  function pressEnter() {
     send({ type: "keycombo", keys: ["Return"] });
+  }
+  function clearPendingEnterTimer() {
+    if (pendingEnterTimer) {
+      clearTimeout(pendingEnterTimer);
+      pendingEnterTimer = null;
+    }
+  }
+  function flushPendingEnter() {
+    if (!pendingEnter) return;
+    pendingEnter = false;
+    clearPendingEnterTimer();
+    pendingEnterTimer = setTimeout(function () {
+      pendingEnterTimer = null;
+      pressEnter();
+    }, SEND_THEN_ENTER_MS);
+  }
+  function sendTypeThenEnter() {
+    var t = resolveTypeText();
+    clearPendingEnterTimer();
+    pendingEnter = false;
+    if (sendTypeText(t)) {
+      // Wait for text ACK (paste Super+V) then a short extra delay so Enter
+      // does not beat the compositor paste. Fallback if ACK never arrives.
+      pendingEnter = true;
+      pendingEnterTimer = setTimeout(function () {
+        flushPendingEnter();
+      }, 700);
+      return;
+    }
+    pressEnter();
+  }
+  // Snapshot on press so IME blur cannot empty the field before click
+  $("type-send").addEventListener("pointerdown", captureTypeInput);
+  $("type-send").addEventListener("click", function () {
+    pendingEnter = false;
+    clearPendingEnterTimer();
+    sendTypeText(resolveTypeText());
+  });
+  var sendEnterBtn = $("type-send-enter");
+  if (sendEnterBtn) {
+    sendEnterBtn.addEventListener("pointerdown", captureTypeInput);
+    sendEnterBtn.addEventListener("click", sendTypeThenEnter);
+  }
+  $("type-enter").addEventListener("click", function () {
+    pendingEnter = false;
+    clearPendingEnterTimer();
+    pressEnter();
   });
 
   // --- Pair form ---
