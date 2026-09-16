@@ -436,7 +436,7 @@
     applyPadMode();
 
     trackpad.addEventListener("pointerdown", function (e) {
-      trackpad.setPointerCapture(e.pointerId);
+      try { trackpad.setPointerCapture(e.pointerId); } catch (err) {}
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       moved = false;
       modeToggled = false;
@@ -461,9 +461,13 @@
       var dx = e.clientX - prev.x;
       var dy = e.clientY - prev.y;
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      if (Math.abs(dx) + Math.abs(dy) > 2) {
+      var adx = Math.abs(dx) + Math.abs(dy);
+      // Finger jitter of a few px should not cancel a mode-toggle hold
+      if (adx > 8) {
         moved = true;
         clearHold();
+      } else if (adx > 2 && phase !== "second") {
+        moved = true;
       }
       if (padMode === "scroll") {
         var sdx = Math.round(dx * SCROLL_SENS);
